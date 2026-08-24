@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { spawnSync } = require("child_process");
 
 // --------------------------------------------------
 // Get summary JSON from command line
@@ -27,7 +28,9 @@ const summaryFile = path.resolve(
 // --------------------------------------------------
 
 if (!fs.existsSync(summaryFile)) {
-    console.error(`Summary file not found: ${summaryFile}`);
+    console.error(
+        `Summary file not found: ${summaryFile}`
+    );
     process.exit(1);
 }
 
@@ -38,12 +41,21 @@ if (!fs.existsSync(summaryFile)) {
 let summary;
 
 try {
+
     summary = JSON.parse(
         fs.readFileSync(summaryFile, "utf8")
     );
+
 } catch (error) {
-    console.error("Unable to read summary JSON.");
-    console.error(error.message);
+
+    console.error(
+        "Unable to read summary JSON."
+    );
+
+    console.error(
+        error.message
+    );
+
     process.exit(1);
 }
 
@@ -55,7 +67,9 @@ console.log("\n========================================");
 console.log("AI PERFORMANCE ANALYSIS");
 console.log("========================================");
 
-console.log(`\nTest: ${summary.test}`);
+console.log(
+    `\nTest: ${summary.test}`
+);
 
 // --------------------------------------------------
 // Overall metrics
@@ -107,7 +121,10 @@ console.log("----------------------------------------");
 
 const samplers = summary.samplers || {};
 
-for (const [samplerName, sampler] of Object.entries(samplers)) {
+for (
+    const [samplerName, sampler]
+    of Object.entries(samplers)
+) {
 
     console.log(`\n${samplerName}`);
 
@@ -133,7 +150,7 @@ for (const [samplerName, sampler] of Object.entries(samplers)) {
 }
 
 // --------------------------------------------------
-// AI Prompt
+// Build AI Prompt
 // --------------------------------------------------
 
 const aiPrompt = `
@@ -232,134 +249,85 @@ Important rules:
 5. Do not assume database, CPU, memory, network, or GC problems without evidence.
 6. Clearly distinguish observations from assumptions.
 7. Use only the supplied JMeter results.
+8. Do not modify any files.
+9. Return only the performance analysis.
 `;
 
 // --------------------------------------------------
-// GitHub Models configuration
+// Run GitHub Copilot CLI
 // --------------------------------------------------
 
-const githubToken = process.env.GITHUB_TOKEN;
-
-const model =
-    process.env.GITHUB_MODEL ||
-    "openai/gpt-4o-mini";
-
-const endpoint =
-    process.env.GITHUB_MODELS_ENDPOINT ||
-    "https://models.github.ai/inference/chat/completions";
-
-// --------------------------------------------------
-// Request AI analysis using GitHub Models
-// --------------------------------------------------
-
-async function requestAIAnalysis() {
-
-    if (!githubToken) {
-        throw new Error(
-            "GITHUB_TOKEN environment variable is required."
-        );
-    }
+function runCopilot(prompt) {
 
     console.log(
         "\n----------------------------------------"
     );
 
     console.log(
-        "Requesting AI analysis using GitHub Models..."
+        "Requesting AI analysis using GitHub Copilot CLI..."
     );
 
     console.log(
-        `Model: ${model}`
+        "----------------------------------------\n"
     );
 
-    console.log(
-        "----------------------------------------"
-    );
-
-    const response = await fetch(
-        endpoint,
+    const result = spawnSync(
+        process.platform === "win32"
+            ? "copilot.cmd"
+            : "copilot",
+        [
+            "-sp",
+            prompt,
+            "--no-ask-user"
+        ],
         {
-            method: "POST",
-
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${githubToken}`
-            },
-
-            body: JSON.stringify({
-                model: model,
-
-                messages: [
-                    {
-                        role: "system",
-                        content:
-                            "You are an expert performance testing engineer."
-                    },
-                    {
-                        role: "user",
-                        content: aiPrompt
-                    }
-                ],
-
-                temperature: 0.2
-            })
+            cwd: projectRoot,
+            encoding: "utf8",
+            stdio: [
+                "ignore",
+                "pipe",
+                "pipe"
+            ],
+            windowsHide: true
         }
     );
 
-    const responseText =
-        await response.text();
-
-    let result;
-
-    try {
-
-        result =
-            JSON.parse(responseText);
-
-    } catch (error) {
+    if (result.error) {
 
         throw new Error(
-            `GitHub Models returned invalid JSON. HTTP ${response.status}.`
+            `GitHub Copilot CLI failed.\n${result.error.message}`
         );
     }
 
-    if (!response.ok) {
+    if (result.status !== 0) {
 
         throw new Error(
-            `GitHub Models request failed. ` +
-            `HTTP ${response.status}: ` +
-            `${result.error?.message || responseText}`
+            `GitHub Copilot CLI failed with exit code ${result.status}.\n` +
+            `${result.stderr || ""}`
         );
     }
 
     const analysis =
-        result.choices?.[0]?.message?.content;
+        (result.stdout || "").trim();
 
     if (!analysis) {
 
         throw new Error(
-            "GitHub Models response did not contain an analysis."
+            "GitHub Copilot returned an empty response."
         );
     }
 
-    return analysis.trim();
+    return analysis;
 }
 
 // --------------------------------------------------
 // Main
 // --------------------------------------------------
 
-async function main() {
+function main() {
 
     const analysis =
-        await requestAIAnalysis();
-
-    if (!analysis) {
-
-        throw new Error(
-            "AI returned an empty response."
-        );
-    }
+        runCopilot(aiPrompt);
 
     // --------------------------------------------------
     // Output file
@@ -400,7 +368,9 @@ async function main() {
         "========================================\n"
     );
 
-    console.log(analysis);
+    console.log(
+        analysis
+    );
 
     console.log(
         "\n========================================"
@@ -419,7 +389,11 @@ async function main() {
 // Execute
 // --------------------------------------------------
 
-main().catch(error => {
+try {
+
+    main();
+
+} catch (error) {
 
     console.error(
         "\nAI analysis failed."
@@ -430,4 +404,4 @@ main().catch(error => {
     );
 
     process.exit(1);
-});
+}

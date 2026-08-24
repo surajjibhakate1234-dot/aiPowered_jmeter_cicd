@@ -12,9 +12,10 @@ on:
     branches:
       - staging
 
+# GitHub Copilot CLI permission
 permissions:
   contents: read
-  models: read
+  copilot-requests: write
 
 jobs:
   performance-test:
@@ -32,11 +33,21 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       # 3. Install Node dependencies
       - name: Install dependencies
         run: npm install
+
+      # --------------------------------------------------
+      # 4. Install GitHub Copilot CLI
+      # --------------------------------------------------
+
+      - name: Install GitHub Copilot CLI
+        shell: pwsh
+        run: |
+          npm install -g @github/copilot
+          copilot --version
 
 #      # 4. Install JMeter
 #      - name: Install JMeter
@@ -52,24 +63,24 @@ jobs:
           $url = "https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-$jmeterVersion.zip"
           $zip = "$env:RUNNER_TEMP\apache-jmeter-$jmeterVersion.zip"
           $destination = "$env:RUNNER_TEMP\apache-jmeter-$jmeterVersion"
-      
+
           Write-Host "Downloading JMeter $jmeterVersion..."
-      
+
           Invoke-WebRequest `
             -Uri $url `
             -OutFile $zip
-      
+
           Write-Host "Extracting JMeter..."
-      
+
           Expand-Archive `
             -Path $zip `
             -DestinationPath $env:RUNNER_TEMP `
             -Force
-      
+
           $jmeterBin = "$destination\bin"
-      
+
           Write-Host "JMeter location: $jmeterBin"
-      
+
           Add-Content `
             -Path $env:GITHUB_PATH `
             -Value $jmeterBin
@@ -80,20 +91,12 @@ jobs:
           jmeter --version
           Get-Command jmeter
 
+      # 6. Run JMeter test
       - name: Run JMeter Performance Test
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_MODEL: openai/gpt-4o-mini
         run: |
           npm run test -- "${{ github.event.inputs.test_file || 'tests/load_test_20.jmx' }}"
-
-#      # 6. Run JMeter test
-#      - name: Run JMeter Performance Test
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#          GITHUB_MODEL: openai/gpt-4o-mini
-#        run: |
-#          npm run test -- "${{ github.event.inputs.test_file || 'tests/load_test_20.jmx' }}"
 
 #      # 7. Upload JMeter results
 #      - name: Upload Performance Results

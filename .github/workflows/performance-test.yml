@@ -34,18 +34,47 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # 4. Install JMeter
-      - name: Install JMeter
-        run: |
-          wget https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.6.3.tgz
-          tar -xzf apache-jmeter-5.6.3.tgz
-          echo "$PWD/apache-jmeter-5.6.3/bin" >> "$GITHUB_PATH"
+#      # 4. Install JMeter
+#      - name: Install JMeter
+#        run: |
+#          wget https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.6.3.tgz
+#          tar -xzf apache-jmeter-5.6.3.tgz
+#          echo "$PWD/apache-jmeter-5.6.3/bin" >> "$GITHUB_PATH"
 
-      # 5. Verify JMeter
+      - name: Install JMeter
+        shell: pwsh
+        run: |
+          $jmeterVersion = "5.6.3"
+          $url = "https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-$jmeterVersion.zip"
+          $zip = "$env:RUNNER_TEMP\apache-jmeter-$jmeterVersion.zip"
+          $destination = "$env:RUNNER_TEMP\apache-jmeter-$jmeterVersion"
+      
+          Write-Host "Downloading JMeter $jmeterVersion..."
+      
+          Invoke-WebRequest `
+            -Uri $url `
+            -OutFile $zip
+      
+          Write-Host "Extracting JMeter..."
+      
+          Expand-Archive `
+            -Path $zip `
+            -DestinationPath $env:RUNNER_TEMP `
+            -Force
+      
+          $jmeterBin = "$destination\bin"
+      
+          Write-Host "JMeter location: $jmeterBin"
+      
+          Add-Content `
+            -Path $env:GITHUB_PATH `
+            -Value $jmeterBin
+
       - name: Verify JMeter
+        shell: pwsh
         run: |
           jmeter --version
-          which jmeter
+          Get-Command jmeter
 
       # 6. Run JMeter test
       - name: Run JMeter Performance Test

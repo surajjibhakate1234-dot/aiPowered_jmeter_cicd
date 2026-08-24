@@ -2,25 +2,14 @@ name: AI-Powered JMeter Performance Test
 
 on:
   workflow_dispatch:
-    inputs:
-      test_file:
-        description: "JMeter test file"
-        required: true
-        default: "tests/load_test_20.jmx"
 
   push:
     branches:
       - staging
 
-# GitHub Copilot CLI permission
-permissions:
-  contents: read
-  copilot-requests: write
-
 jobs:
   performance-test:
 
-#    runs-on: ubuntu-latest
     runs-on: windows-latest
 
     steps:
@@ -33,29 +22,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
 
       # 3. Install Node dependencies
       - name: Install dependencies
         run: npm install
 
-      # --------------------------------------------------
-      # 4. Install GitHub Copilot CLI
-      # --------------------------------------------------
-
-      - name: Install GitHub Copilot CLI
-        shell: pwsh
-        run: |
-          npm install -g @github/copilot
-          copilot --version
-
-#      # 4. Install JMeter
-#      - name: Install JMeter
-#        run: |
-#          wget https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.6.3.tgz
-#          tar -xzf apache-jmeter-5.6.3.tgz
-#          echo "$PWD/apache-jmeter-5.6.3/bin" >> "$GITHUB_PATH"
-
+      # 4. Install JMeter
       - name: Install JMeter
         shell: pwsh
         run: |
@@ -85,31 +58,111 @@ jobs:
             -Path $env:GITHUB_PATH `
             -Value $jmeterBin
 
+      # 5. Verify JMeter
       - name: Verify JMeter
         shell: pwsh
         run: |
           jmeter --version
           Get-Command jmeter
 
-      # 6. Run JMeter test
-      - name: Run JMeter Performance Test
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # 6. Discover all JMX files
+      - name: Discover JMeter Tests
+        shell: pwsh
         run: |
-          npm run test -- "${{ github.event.inputs.test_file || 'tests/load_test_20.jmx' }}"
+          Write-Host "========================================"
+          Write-Host "DISCOVERING JMX TESTS"
+          Write-Host "========================================"
 
-#      # 7. Upload JMeter results
-#      - name: Upload Performance Results
-#        if: always()
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: jmeter-performance-results
-#          path: |
-#            results/*.jtl
-#            results/*_summary.json
-#            results/*_report/
+          $tests = Get-ChildItem `
+            -Path "tests" `
+            -Filter "*.jmx" `
+            -Recurse `
+            -File
 
-      # 7. Upload all performance results
+          if ($tests.Count -eq 0) {
+              Write-Error "No JMX files found under tests/"
+              exit 1
+          }
+
+          Write-Host ""
+          Write-Host "Found $($tests.Count) JMX test(s):"
+
+          foreach ($test in $tests) {
+              Write-Host $test.FullName
+          }
+
+      # 7. Run all JMeter tests
+      - name: Run All JMeter Tests
+        shell: pwsh
+        run: |
+
+          $tests = Get-ChildItem `
+            -Path "tests" `
+            -Filter "*.jmx" `
+            -Recurse `
+            -File
+
+          $failedTests = @()
+
+          foreach ($test in $tests) {
+
+              Write-Host ""
+              Write-Host "========================================"
+              Write-Host "RUNNING JMX TEST"
+              Write-Host "========================================"
+              Write-Host "Test: $($test.FullName)"
+              Write-Host "========================================"
+
+              $relativePath = $test.FullName.Replace(
+                  "$((Get-Location).Path)\",
+                  ""
+              )
+
+              Write-Host "Relative path: $relativePath"
+
+              npm run test -- "$relativePath"
+
+              if ($LASTEXITCODE -ne 0) {
+
+                  Write-Warning `
+                    "Test failed: $relativePath"
+
+                  $failedTests += $relativePath
+
+                  # Continue with next test
+                  continue
+              }
+
+              Write-Host ""
+              Write-Host "Test completed successfully:"
+              Write-Host "$relativePath"
+          }
+
+          Write-Host ""
+          Write-Host "========================================"
+          Write-Host "TEST EXECUTION SUMMARY"
+          Write-Host "========================================"
+
+          if ($failedTests.Count -gt 0) {
+
+              Write-Host ""
+              Write-Host "Failed tests:"
+
+              foreach ($failed in $failedTests) {
+                  Write-Host " - $failed"
+              }
+
+              Write-Host ""
+              Write-Warning `
+                "One or more JMeter tests failed."
+          }
+          else {
+
+              Write-Host ""
+              Write-Host "All JMeter tests completed successfully."
+          }
+
+      # 8. Upload all performance results
       - name: Upload Performance Results
         if: always()
         uses: actions/upload-artifact@v4
@@ -120,3 +173,4 @@ jobs:
             results/*_summary.json
             results/*_report/
             results/*_ai_analysis.md
+          if-no-files-found: warn

@@ -12,6 +12,10 @@ on:
     branches:
       - staging
 
+permissions:
+  contents: read
+  models: read
+
 jobs:
   performance-test:
 
@@ -76,10 +80,20 @@ jobs:
           jmeter --version
           Get-Command jmeter
 
-      # 6. Run JMeter test
       - name: Run JMeter Performance Test
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_MODEL: openai/gpt-4o-mini
         run: |
           npm run test -- "${{ github.event.inputs.test_file || 'tests/load_test_20.jmx' }}"
+
+#      # 6. Run JMeter test
+#      - name: Run JMeter Performance Test
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#          GITHUB_MODEL: openai/gpt-4o-mini
+#        run: |
+#          npm run test -- "${{ github.event.inputs.test_file || 'tests/load_test_20.jmx' }}"
 
 #      # 7. Upload JMeter results
 #      - name: Upload Performance Results

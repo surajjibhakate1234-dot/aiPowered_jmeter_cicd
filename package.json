@@ -1,0 +1,8 @@
+{
+  "name": "ai-powered-jmeter-cicd",
+  "version": "1.0.0",
+  "description": "AI-powered JMeter performance testing and CI/CD project",
+  "scripts": {
+    "test": "node scripts/run-test.js"
+  }
+}

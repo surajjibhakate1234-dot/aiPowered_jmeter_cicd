@@ -55,6 +55,18 @@ try {
         }
     );
 
+    // console.log("\n========================================");
+    // console.log("STEP 3 - AI Performance Analysis");
+    // console.log("========================================\n");
+    //
+    // execSync(
+    //     `node agents/analysis-agent.js "results/${testName}_summary.json"`,
+    //     {
+    //         stdio: "inherit",
+    //         cwd: projectRoot
+    //     }
+    // );
+
     console.log("\n========================================");
     console.log("STEP 3 - AI Performance Analysis");
     console.log("========================================\n");
@@ -79,6 +91,10 @@ try {
     console.log(
         `Summary: results/${testName}_summary.json`
     );
+    // console.log(
+    //     `AI Analysis: results/${testName}_ai_analysis.md`
+    // );
+
     console.log(
         `AI Analysis: results/${testName}_ai_analysis.md`
     );

@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { spawnSync } = require("child_process");
 
 // --------------------------------------------------
 // Get summary JSON from command line
@@ -16,11 +17,6 @@ if (!summaryArgument) {
 }
 
 const projectRoot = path.resolve(__dirname, "..");
-const githubToken = process.env.GITHUB_TOKEN;
-const model = process.env.GITHUB_MODEL || "openai/gpt-4o-mini";
-const endpoint =
-    process.env.GITHUB_MODELS_ENDPOINT ||
-    "https://models.github.ai/inference/chat/completions";
 
 const summaryFile = path.resolve(
     projectRoot,
@@ -28,7 +24,7 @@ const summaryFile = path.resolve(
 );
 
 // --------------------------------------------------
-// Validate file
+// Validate summary file
 // --------------------------------------------------
 
 if (!fs.existsSync(summaryFile)) {
@@ -45,24 +41,12 @@ if (!fs.existsSync(summaryFile)) {
 let summary;
 
 try {
-
     summary = JSON.parse(
-        fs.readFileSync(
-            summaryFile,
-            "utf8"
-        )
+        fs.readFileSync(summaryFile, "utf8")
     );
-
 } catch (error) {
-
-    console.error(
-        "Unable to read summary JSON."
-    );
-
-    console.error(
-        error.message
-    );
-
+    console.error("Unable to read summary JSON.");
+    console.error(error.message);
     process.exit(1);
 }
 
@@ -70,37 +54,19 @@ try {
 // Display performance data
 // --------------------------------------------------
 
-console.log(
-    "\n========================================"
-);
+console.log("\n========================================");
+console.log("AI PERFORMANCE ANALYSIS");
+console.log("========================================");
 
-console.log(
-    "AI PERFORMANCE ANALYSIS"
-);
-
-console.log(
-    "========================================"
-);
-
-console.log(
-    `\nTest: ${summary.test}`
-);
+console.log(`\nTest: ${summary.test}`);
 
 // --------------------------------------------------
 // Overall metrics
 // --------------------------------------------------
 
-console.log(
-    "\n----------------------------------------"
-);
-
-console.log(
-    "Overall Performance"
-);
-
-console.log(
-    "----------------------------------------"
-);
+console.log("\n----------------------------------------");
+console.log("Overall Performance");
+console.log("----------------------------------------");
 
 console.log(
     `Total Requests      : ${summary.overall.totalRequests}`
@@ -135,34 +101,18 @@ console.log(
 );
 
 // --------------------------------------------------
-// API analysis
+// API metrics
 // --------------------------------------------------
 
-console.log(
-    "\n----------------------------------------"
-);
+console.log("\n----------------------------------------");
+console.log("API Performance");
+console.log("----------------------------------------");
 
-console.log(
-    "API Performance"
-);
+const samplers = summary.samplers || {};
 
-console.log(
-    "----------------------------------------"
-);
+for (const [samplerName, sampler] of Object.entries(samplers)) {
 
-const samplers =
-    summary.samplers || {};
-
-for (
-    const [
-        samplerName,
-        sampler
-    ] of Object.entries(samplers)
-    ) {
-
-    console.log(
-        `\n${samplerName}`
-    );
+    console.log(`\n${samplerName}`);
 
     console.log(
         `  Requests : ${sampler.requests}`
@@ -212,106 +162,197 @@ ${summary.testDurationSeconds} seconds
 Per API Metrics:
 ${JSON.stringify(summary.samplers, null, 2)}
 
-Provide:
+Provide a professional performance analysis with these sections:
 
-1. Overall performance assessment
-2. Slowest API
-3. Fastest API
-4. APIs with high P95/P99 latency
-5. Error analysis
-6. Throughput assessment
-7. Potential performance concerns
-8. Recommendations
-9. Whether another load/stress test is recommended
+# Overall Assessment
 
-Do not invent metrics that are not present in the input.
-Base all conclusions on the provided data.
+Explain whether the test appears healthy based strictly on
+the provided metrics.
+
+# API Analysis
+
+For every API:
+
+- response time
+- P95
+- P99
+- error rate
+- performance observation
+
+# Slowest API
+
+Identify the slowest API using the provided metrics.
+
+# Fastest API
+
+Identify the fastest API using the provided metrics.
+
+# Latency Analysis
+
+Identify APIs with relatively high P95 or P99 values.
+
+# Error Analysis
+
+Explain the error rate and failed requests.
+
+# Throughput Analysis
+
+Interpret the observed throughput.
+
+# Performance Risks
+
+Identify potential performance concerns.
+
+# Recommendations
+
+Provide practical performance-testing recommendations.
+
+# Next Test Recommendation
+
+Recommend whether the next test should be:
+
+- Load testing
+- Stress testing
+- Scalability testing
+- Endurance testing
+
+Explain why.
+
+Important rules:
+
+1. Do not invent metrics.
+2. Do not invent SLA values.
+3. Do not claim a system passed an SLA unless an SLA is provided.
+4. Base conclusions only on the supplied data.
+5. Clearly distinguish observations from assumptions.
 `;
 
 // --------------------------------------------------
-// Request AI analysis
+// Run GitHub Copilot CLI
 // --------------------------------------------------
 
-async function requestAnalysis() {
-    if (!githubToken) {
-        throw new Error(
-            "GITHUB_TOKEN environment variable is required."
-        );
-    }
+function runCopilot(prompt) {
 
-    const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${githubToken}`
-        },
-        body: JSON.stringify({
-            model,
-            messages: [
-                {
-                    role: "user",
-                    content: aiPrompt
-                }
-            ],
-            temperature: 0.2
-        })
-    });
-
-    const responseText = await response.text();
-    let result;
-
-    try {
-        result = JSON.parse(responseText);
-    } catch (error) {
-        throw new Error(
-            `GitHub Models returned invalid JSON (HTTP ${response.status}).`
-        );
-    }
-
-    if (!response.ok) {
-        throw new Error(
-            `GitHub Models request failed (HTTP ${response.status}): ` +
-            `${result.error?.message || responseText}`
-        );
-    }
-
-    const analysis = result.choices?.[0]?.message?.content;
-
-    if (!analysis) {
-        throw new Error(
-            "GitHub Models response did not contain an analysis."
-        );
-    }
-
-    return analysis;
-}
-
-async function main() {
     console.log(
         "\n----------------------------------------"
     );
 
     console.log(
-        `Requesting AI analysis using ${model}...`
+        "Requesting AI analysis using GitHub Copilot..."
     );
 
-    const analysis = await requestAnalysis();
+    console.log(
+        "----------------------------------------\n"
+    );
+
+    const promptFile = path.join(
+        projectRoot,
+        "results",
+        ".copilot_prompt.txt"
+    );
+
+    fs.writeFileSync(
+        promptFile,
+        prompt,
+        "utf8"
+    );
+
+    try {
+
+        const result = spawnSync(
+            "powershell.exe",
+            [
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                `Get-Content -Raw -LiteralPath '${promptFile}' | copilot`
+            ],
+            {
+                cwd: projectRoot,
+                encoding: "utf8",
+                stdio: [
+                    "ignore",
+                    "pipe",
+                    "pipe"
+                ],
+                windowsHide: true
+            }
+        );
+
+        if (result.error) {
+            throw new Error(
+                `GitHub Copilot CLI failed.\n${result.error.message}`
+            );
+        }
+
+        if (result.status !== 0) {
+            throw new Error(
+                `GitHub Copilot CLI failed with exit code ${result.status}.\n` +
+                `${result.stderr || ""}`
+            );
+        }
+
+        return (result.stdout || "").trim();
+
+    } finally {
+
+        if (fs.existsSync(promptFile)) {
+            fs.unlinkSync(promptFile);
+        }
+    }
+}
+// --------------------------------------------------
+// Main
+// --------------------------------------------------
+
+function main() {
+
+    const analysis = runCopilot(aiPrompt);
+
+    if (!analysis) {
+        throw new Error(
+            "GitHub Copilot returned an empty response."
+        );
+    }
+
+    // --------------------------------------------------
+    // Output file
+    // --------------------------------------------------
+
+    const testName = path.basename(
+        summaryFile,
+        "_summary.json"
+    );
+
     const outputFile = path.join(
         projectRoot,
         "results",
-        `${path.basename(summaryFile, "_summary.json")}_ai_analysis.md`
+        `${testName}_ai_analysis.md`
     );
 
     fs.writeFileSync(
         outputFile,
-        `# AI Performance Analysis\n\n${analysis.trim()}\n`
+        `# AI Performance Analysis\n\n${analysis}\n`,
+        "utf8"
+    );
+
+    // --------------------------------------------------
+    // Display result
+    // --------------------------------------------------
+
+    console.log(
+        "\n========================================"
     );
 
     console.log(
-        "\n----------------------------------------"
+        "AI ANALYSIS RESULT"
     );
 
-    console.log(analysis.trim());
+    console.log(
+        "========================================\n"
+    );
+
+    console.log(analysis);
 
     console.log(
         "\n========================================"
@@ -326,8 +367,19 @@ async function main() {
     );
 }
 
-main().catch(error => {
-    console.error("\nAI analysis failed.");
-    console.error(error.message);
+try {
+
+    main();
+
+} catch (error) {
+
+    console.error(
+        "\nAI analysis failed."
+    );
+
+    console.error(
+        error.message
+    );
+
     process.exit(1);
-});
+}

@@ -51,7 +51,18 @@ jobs:
         run: |
           npm run test -- "${{ github.event.inputs.test_file || 'tests/load_test_20.jmx' }}"
 
-      # 7. Upload JMeter results
+#      # 7. Upload JMeter results
+#      - name: Upload Performance Results
+#        if: always()
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: jmeter-performance-results
+#          path: |
+#            results/*.jtl
+#            results/*_summary.json
+#            results/*_report/
+
+      # 7. Upload all performance results
       - name: Upload Performance Results
         if: always()
         uses: actions/upload-artifact@v4
@@ -61,3 +72,4 @@ jobs:
             results/*.jtl
             results/*_summary.json
             results/*_report/
+            results/*_ai_analysis.md

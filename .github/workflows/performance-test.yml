@@ -15,7 +15,8 @@ on:
 jobs:
   performance-test:
 
-    runs-on: ubuntu-latest
+#    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
 

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
   <hashTree>
     <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Test Plan">
@@ -10,9 +10,9 @@
     </TestPlan>
     <hashTree>
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Thread Group">
-        <intProp name="ThreadGroup.num_threads">200</intProp>
-        <intProp name="ThreadGroup.ramp_time">60</intProp>
-        <longProp name="ThreadGroup.duration">3600</longProp>
+        <intProp name="ThreadGroup.num_threads">2000</intProp>
+        <intProp name="ThreadGroup.ramp_time">120</intProp>
+        <longProp name="ThreadGroup.duration">180</longProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">false</boolProp>
         <boolProp name="ThreadGroup.scheduler">true</boolProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
@@ -39,7 +39,7 @@
         <hashTree/>
         <CounterConfig guiclass="CounterConfigGui" testclass="CounterConfig" testname="Counter" enabled="true">
           <stringProp name="CounterConfig.start">1</stringProp>
-          <stringProp name="CounterConfig.end">1000</stringProp>
+          <stringProp name="CounterConfig.end">2000</stringProp>
           <stringProp name="CounterConfig.incr">1</stringProp>
           <stringProp name="CounterConfig.name">counter</stringProp>
           <stringProp name="CounterConfig.format"></stringProp>
@@ -48,7 +48,7 @@
         <hashTree/>
         <CounterConfig guiclass="CounterConfigGui" testclass="CounterConfig" testname="Userid" enabled="true">
           <stringProp name="CounterConfig.start">1</stringProp>
-          <stringProp name="CounterConfig.end">1000</stringProp>
+          <stringProp name="CounterConfig.end">2000</stringProp>
           <stringProp name="CounterConfig.incr">1</stringProp>
           <stringProp name="CounterConfig.name">userid</stringProp>
           <stringProp name="CounterConfig.format"></stringProp>
@@ -234,3 +234,4 @@
     </hashTree>
   </hashTree>
 </jmeterTestPlan>
+

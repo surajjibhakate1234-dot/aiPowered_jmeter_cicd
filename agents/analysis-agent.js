@@ -272,19 +272,17 @@ function runCopilot(prompt) {
     );
 
     const result = spawnSync(
-        process.platform === "win32"
-            ? "copilot.cmd"
-            : "copilot",
+        "cmd.exe",
         [
-            "-sp",
-            prompt,
-            "--no-ask-user"
+            "/c",
+            "copilot.cmd"
         ],
         {
             cwd: projectRoot,
             encoding: "utf8",
+            input: prompt,
             stdio: [
-                "ignore",
+                "pipe",
                 "pipe",
                 "pipe"
             ],
@@ -307,17 +305,9 @@ function runCopilot(prompt) {
         );
     }
 
-    const analysis =
-        (result.stdout || "").trim();
-
-    if (!analysis) {
-
-        throw new Error(
-            "GitHub Copilot returned an empty response."
-        );
-    }
-
-    return analysis;
+    return (
+        result.stdout || ""
+    ).trim();
 }
 
 // --------------------------------------------------

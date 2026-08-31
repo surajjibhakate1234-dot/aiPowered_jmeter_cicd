@@ -1,0 +1,13 @@
+{
+  "name": "ai-powered-jmeter-cicd",
+  "version": "1.0.0",
+  "description": "AI-powered JMeter performance testing and CI/CD project",
+  "scripts": {
+    "test": "node scripts/run-test.js",
+    "test:all": "node scripts/run-all-tests.js",
+    "mcp": "node jmeter-mcp-server/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}

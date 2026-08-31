@@ -1,0 +1,176 @@
+name: AI-Powered JMeter Performance Test
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - staging
+
+jobs:
+  performance-test:
+
+    runs-on: windows-latest
+
+    steps:
+
+      # 1. Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # 3. Install Node dependencies
+      - name: Install dependencies
+        run: npm install
+
+      # 4. Install JMeter
+      - name: Install JMeter
+        shell: pwsh
+        run: |
+          $jmeterVersion = "5.6.3"
+          $url = "https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-$jmeterVersion.zip"
+          $zip = "$env:RUNNER_TEMP\apache-jmeter-$jmeterVersion.zip"
+          $destination = "$env:RUNNER_TEMP\apache-jmeter-$jmeterVersion"
+
+          Write-Host "Downloading JMeter $jmeterVersion..."
+
+          Invoke-WebRequest `
+            -Uri $url `
+            -OutFile $zip
+
+          Write-Host "Extracting JMeter..."
+
+          Expand-Archive `
+            -Path $zip `
+            -DestinationPath $env:RUNNER_TEMP `
+            -Force
+
+          $jmeterBin = "$destination\bin"
+
+          Write-Host "JMeter location: $jmeterBin"
+
+          Add-Content `
+            -Path $env:GITHUB_PATH `
+            -Value $jmeterBin
+
+      # 5. Verify JMeter
+      - name: Verify JMeter
+        shell: pwsh
+        run: |
+          jmeter --version
+          Get-Command jmeter
+
+      # 6. Discover all JMX files
+      - name: Discover JMeter Tests
+        shell: pwsh
+        run: |
+          Write-Host "========================================"
+          Write-Host "DISCOVERING JMX TESTS"
+          Write-Host "========================================"
+
+          $tests = Get-ChildItem `
+            -Path "tests" `
+            -Filter "*.jmx" `
+            -Recurse `
+            -File
+
+          if ($tests.Count -eq 0) {
+              Write-Error "No JMX files found under tests/"
+              exit 1
+          }
+
+          Write-Host ""
+          Write-Host "Found $($tests.Count) JMX test(s):"
+
+          foreach ($test in $tests) {
+              Write-Host $test.FullName
+          }
+
+      # 7. Run all JMeter tests
+      - name: Run All JMeter Tests
+        shell: pwsh
+        run: |
+
+          $tests = Get-ChildItem `
+            -Path "tests" `
+            -Filter "*.jmx" `
+            -Recurse `
+            -File
+
+          $failedTests = @()
+
+          foreach ($test in $tests) {
+
+              Write-Host ""
+              Write-Host "========================================"
+              Write-Host "RUNNING JMX TEST"
+              Write-Host "========================================"
+              Write-Host "Test: $($test.FullName)"
+              Write-Host "========================================"
+
+              $relativePath = $test.FullName.Replace(
+                  "$((Get-Location).Path)\",
+                  ""
+              )
+
+              Write-Host "Relative path: $relativePath"
+
+              npm run test -- "$relativePath"
+
+              if ($LASTEXITCODE -ne 0) {
+
+                  Write-Warning `
+                    "Test failed: $relativePath"
+
+                  $failedTests += $relativePath
+
+                  # Continue with next test
+                  continue
+              }
+
+              Write-Host ""
+              Write-Host "Test completed successfully:"
+              Write-Host "$relativePath"
+          }
+
+          Write-Host ""
+          Write-Host "========================================"
+          Write-Host "TEST EXECUTION SUMMARY"
+          Write-Host "========================================"
+
+          if ($failedTests.Count -gt 0) {
+
+              Write-Host ""
+              Write-Host "Failed tests:"
+
+              foreach ($failed in $failedTests) {
+                  Write-Host " - $failed"
+              }
+
+              Write-Host ""
+              Write-Warning `
+                "One or more JMeter tests failed."
+          }
+          else {
+
+              Write-Host ""
+              Write-Host "All JMeter tests completed successfully."
+          }
+
+      # 8. Upload all performance results
+      - name: Upload Performance Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jmeter-performance-results
+          path: |
+            results/*.jtl
+            results/*_summary.json
+            results/*_report/
+            results/*_ai_analysis.md
+          if-no-files-found: warn
